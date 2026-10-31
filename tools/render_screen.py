@@ -29,6 +29,7 @@ LABELS = {
     # 单位也要翻译：以前 '2 次' / '42 条 · 4 会话' 是硬编码在格式串里的，
     # 标签翻成英文、单位还留着中文。
     '次': 'times', '条': 'msgs', '会话': 'sessions',
+    '剩余': 'Remaining',
     '未安装': 'Not installed', '不可用': 'Unavailable', '天气': 'Weather',
     '天气不可用': 'Weather unavailable', '市场': 'Markets', '世界时钟': 'World Clocks',
     '时钟不可用': 'Clocks unavailable', 'MLB · 道奇 / 教士': 'MLB · LAD / SD (UTC+8)',
@@ -381,13 +382,18 @@ def draw_ai(draw, d, y):
         if c_used is not None and c_size is not None:
             if ctx:
                 val = '%s / %s' % (fnum(c_used), fnum(c_size))       # 已用上下文 / 窗口
+                label, pct = tr('上下文'), c_pct
             else:
-                # 云端拿到的旧 quotas.json 没有 context 字段，退回老口径
+                # 云端拿到的旧 quotas.json 没有 context 字段，那它只有"剩余"这一个口径。
+                # 标签和进度条必须跟着换，否则会画出"上下文 254392/300000"却按已用率填充
+                # 进度条这种自相矛盾的行。
                 rem = wb.get('remaining')
                 val = '%s / %s' % (fnum(rem), fnum(c_size)) if rem is not None else '%s / %s' % (fnum(c_used), fnum(c_size))
+                label = tr('剩余')
+                pct = (100 - c_pct) if isinstance(c_pct, (int, float)) else None
             if wb.get('stale'):
                 val += ' ' + tr('·旧')
-            rows.append((tr('上下文'), val, c_pct))
+            rows.append((label, val, pct))
         cr = wb.get('credit') or {}
         if cr.get('used') is not None:
             rows.append((tr('已消耗'), '%s credits · %s %s' % (fnum(cr.get('used')), fnum(cr.get('count')), tr('次')), None))

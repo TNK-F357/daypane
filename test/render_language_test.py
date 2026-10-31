@@ -101,3 +101,30 @@ class LanguageTests(unittest.TestCase):
             r.render(data, str(out), 'en')
             self.assertTrue(out.exists())
             self.assertEqual(r._cjk_leak(), [], 'English render leaked Chinese onto the canvas')
+
+    def test_legacy_quota_snapshot_renders_consistently(self):
+        # 云端 runtime-data 分支里可能还是旧格式（没有 context 字段）——
+        # 上报 token 失效时就是这样。那份数据只有"剩余"一个口径，
+        # 标签和进度条必须一起换，不能画成"上下文 254392/300000"却按已用率填充。
+        import tempfile
+        data = {
+            'ok': True,
+            'weather': {'ok': True, 'city': '深圳', 'text': '晴', 'temp': 26, 'high': 29, 'low': 22, 'humidity': 60},
+            'fx': {'ok': True, 'cny': 7.1, 'inr': 83, 'base': 'USD'},
+            'stocks': {'ok': True, 'items': []},
+            'clocks': {'ok': True, 'items': []},
+            'news': {'ok': True, 'items': []},
+            'newsEn': {'ok': True, 'items': []},
+            'mlb': {'ok': True, 'items': []},
+            'quotas': {'workbuddy': {'ok': True, 'model': 'hy3', 'used': 100, 'cap': 1000,
+                                     'remaining': 900, 'percent': 10},
+                       'claudecode': {'ok': True, 'used7d': 42, 'sessions7d': 4}}
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'en.png'
+            r.render(data, str(out), 'en')
+            self.assertTrue(out.exists())
+            self.assertEqual(r._cjk_leak(), [], 'legacy snapshot leaked Chinese onto the canvas')
+        r.LANG = 'en'
+        self.assertEqual(r.tr('剩余'), 'Remaining')
+        self.assertEqual(r.tr('上下文'), 'Context')

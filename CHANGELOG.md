@@ -10,6 +10,7 @@
   - the deployment docs still said to set `cancel-in-progress: false` — precisely the setting that stalled the whole pipeline for five days;
   - the English image leaked Chinese from units hard-coded in format strings ("2 次", "42 条 · 4 会话"); the renderer now records every string it draws and fails the English build if any CJK reaches the canvas;
   - the public `runtime-data` branch carried the Windows machine name and the local Codex path.
+  - the renderer also keeps an old-format cloud snapshot self-consistent: with no `context` field the payload only has a "remaining" reading, so the label and the bar switch together instead of drawing "Context 254392/300000" with a used-ratio bar.
 - 修复 2026-10-31 代码审查发现的问题：
   - 浏览器看板把新数据赋给了 `const` 绑定，每次自动刷新都抛异常并被吞掉 —— 页面首次加载后就不再更新；
   - 浏览器看板仍显示已废弃的"额度"语义（剩余/总量 + Claude Code/Codex 手写上限），而 PNG 版早已改成 上下文 / 已消耗 / 本周活动；
@@ -17,7 +18,8 @@
   - `/api/status` 没有 try/catch，进程也没有 `uncaughtException` 兜底，WorkBuddy 一次表结构变更就会变成崩溃循环 + 黑屏；
   - 部署文档仍写着 `cancel-in-progress: false` —— 正是那个把流水线堵了 5 天的设置；
   - 英文图里混着硬编码在格式串里的中文单位（"2 次"、"42 条 · 4 会话"）；渲染器现在会记录画上去的每一个字符串，英文版一旦有中文上屏就构建失败；
-  - 公开的 `runtime-data` 分支里带着 Windows 机器名和本机 Codex 路径。
+  - 公开的 `runtime-data` 分支里带着 Windows 机器名和本机 Codex 路径；
+  - 渲染器同时保证旧格式云端快照自洽：没有 `context` 字段时那份数据只有"剩余"一个口径，标签与进度条一起切换，不再画出「上下文 254392/300000」却按已用率填充的进度条。
 
 - The quota reporter is no longer a separate always-on process. It is now a side effect of the dashboard service: every generated screen triggers a throttled upload, so the reporter's lifetime follows the board (and WorkBuddy) instead of boot. The second startup entry (`DayPaneQuotaReporter.vbs`) is gone. Secrets are read straight from `tools/report_secrets.bat` on each attempt — no restart needed after editing it, and no reliance on the guardian script re-reading its own file. Background runs can never touch git credentials (a dead token used to mean a credential prompt every 5 minutes); the git fallback is manual-only, via `report_quota.bat --force`.
 - 额度上报器不再是独立的常驻进程，改为看板服务的副产物：每次出图触发一次带节流的上报，生命周期天然跟着看板（也就跟着 WorkBuddy）走，而不是跟着开机走。第二个开机自启项 `DayPaneQuotaReporter.vbs` 已移除。敏感配置改为每次上报时直接读 `tools/report_secrets.bat`，改完不用重启服务，也不依赖守护脚本重载自身。后台运行绝不触碰 git 凭据（此前令牌失效会导致每 5 分钟弹一次窗）；git 回退通道只保留手动 `report_quota.bat --force`。
