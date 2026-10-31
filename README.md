@@ -57,9 +57,16 @@ Environment variables override `config.json`.
 | Stocks | `stocks` | `DASH_STOCKS` (JSON) |
 | World clocks | `clocks` | `DASH_CLOCKS` (JSON) |
 | Activity caps | `claudeCap` / `codexCap` | `DASH_CLAUDE_CAP` / `DASH_CODEX_CAP` |
+| Usage stale threshold | `quotaStaleMs` (default 6h) | `SHAWN_QUOTA_STALE_MS` |
 | WorkBuddy database | — | `WORKBUDDY_DB_PATH` |
 
 Market data uses Tencent Finance, weather uses Open-Meteo, and FX uses open.er-api.com. These integrations do not require an API key. See `config.json` for the configured instruments and locations. AI activity metrics are estimates, not authoritative account quotas; the cloud reporter's current labels and limitations are explained in the deployment guide.
+
+The AI usage block shows three different numbers — do not conflate them:
+
+- **Context**: the session's context watermark against the model's context window. It drops when auto-compaction fires and resets on a new session; it is **not** an account balance.
+- **Spent**: cumulative `credit_json` (credits · request count); monotonically increasing — this is what has actually been consumed.
+- **7d activity**: message/file counts over the last 7 days; `claudeCap` / `codexCap` are hand-written reference values with no real quota semantics.
 
 ## Kindle installation and upgrade
 

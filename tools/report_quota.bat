@@ -1,5 +1,7 @@
 @echo off
-rem 本机 AI 额度上报器（常驻循环）
+rem 本机 AI 额度上报器（一次性）
+rem 常驻上报已合并进看板服务 :8787 —— 每次出图顺带推一次，无需再开一个常驻进程。
+rem 这个脚本只用于手动补推：report_quota.bat [--force] [--dry]
 rem 前置：复制 report_secrets.example.bat 为 report_secrets.bat 并填入 Token/仓库
 setlocal
 cd /d C:\Users\Shen\WorkBuddy\2026-08-16-01-28-56
@@ -16,8 +18,6 @@ if "%GITHUB_REPO%"=="" (
   echo [warn] GITHUB_REPO 未设置，只写本地 data\quotas.json，不推远端
 )
 
-:loop
-"%NODE%" tools\report_quota.js --loop >> tools\report_quota.log 2>&1
-echo [%date% %time%] reporter exited (code %errorlevel%), restarting in 30s... >> tools\report_quota.log
-timeout /t 30 /nobreak > nul
-goto loop
+"%NODE%" tools\report_quota.js %* >> tools\report_quota.log 2>&1
+echo [%date% %time%] reporter exited (code %errorlevel%) >> tools\report_quota.log
+endlocal

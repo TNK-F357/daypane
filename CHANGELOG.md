@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Close the gaps found by the 2026-10-31 code review:
+  - the browser dashboard assigned new data to a `const` binding, so every automatic refresh threw and was swallowed — the page silently stopped updating after the first load;
+  - the browser dashboard still showed the retired "quota" semantics (remaining/size plus hand-written Claude Code and Codex caps) while the PNG renderer had already moved to Context / Spent / 7d activity;
+  - `Access-Control-Allow-Origin: *` on every JSON response let any page open in the user's browser read `/api/dashboard` (session title included) — removed; the board is same-origin and the Kindle speaks LuaSocket, so nothing needed it;
+  - `/api/status` had no `try/catch` and the process had no `uncaughtException` guard, so a WorkBuddy schema change became a crash loop and a black screen;
+  - the deployment docs still said to set `cancel-in-progress: false` — precisely the setting that stalled the whole pipeline for five days;
+  - the English image leaked Chinese from units hard-coded in format strings ("2 次", "42 条 · 4 会话"); the renderer now records every string it draws and fails the English build if any CJK reaches the canvas;
+  - the public `runtime-data` branch carried the Windows machine name and the local Codex path.
+- 修复 2026-10-31 代码审查发现的问题：
+  - 浏览器看板把新数据赋给了 `const` 绑定，每次自动刷新都抛异常并被吞掉 —— 页面首次加载后就不再更新；
+  - 浏览器看板仍显示已废弃的"额度"语义（剩余/总量 + Claude Code/Codex 手写上限），而 PNG 版早已改成 上下文 / 已消耗 / 本周活动；
+  - 所有 JSON 响应都带 `Access-Control-Allow-Origin: *`，用户浏览器里打开的任意网页都能读走含会话标题的 `/api/dashboard` —— 已去掉；看板是同源、Kindle 走 LuaSocket，都不需要它；
+  - `/api/status` 没有 try/catch，进程也没有 `uncaughtException` 兜底，WorkBuddy 一次表结构变更就会变成崩溃循环 + 黑屏；
+  - 部署文档仍写着 `cancel-in-progress: false` —— 正是那个把流水线堵了 5 天的设置；
+  - 英文图里混着硬编码在格式串里的中文单位（"2 次"、"42 条 · 4 会话"）；渲染器现在会记录画上去的每一个字符串，英文版一旦有中文上屏就构建失败；
+  - 公开的 `runtime-data` 分支里带着 Windows 机器名和本机 Codex 路径。
+
+- The quota reporter is no longer a separate always-on process. It is now a side effect of the dashboard service: every generated screen triggers a throttled upload, so the reporter's lifetime follows the board (and WorkBuddy) instead of boot. The second startup entry (`DayPaneQuotaReporter.vbs`) is gone. Secrets are read straight from `tools/report_secrets.bat` on each attempt — no restart needed after editing it, and no reliance on the guardian script re-reading its own file. Background runs can never touch git credentials (a dead token used to mean a credential prompt every 5 minutes); the git fallback is manual-only, via `report_quota.bat --force`.
+- 额度上报器不再是独立的常驻进程，改为看板服务的副产物：每次出图触发一次带节流的上报，生命周期天然跟着看板（也就跟着 WorkBuddy）走，而不是跟着开机走。第二个开机自启项 `DayPaneQuotaReporter.vbs` 已移除。敏感配置改为每次上报时直接读 `tools/report_secrets.bat`，改完不用重启服务，也不依赖守护脚本重载自身。后台运行绝不触碰 git 凭据（此前令牌失效会导致每 5 分钟弹一次窗）；git 回退通道只保留手动 `report_quota.bat --force`。
+
+- Fix the AI usage block's semantics: `session_usage.used/size` is the session's **context watermark** against the model's context window (it collapses on auto-compaction and resets on a new session), not an account balance. The block is now titled "WorkBuddy usage" (all three rows read from WorkBuddy; falls back to the generic "AI usage" title only when Codex is actually installed) and shows Context (used/window), Spent (cumulative `credit_json`, monotonic) and 7d activity; fake "quota" progress bars for Claude Code/Codex (hand-written caps) are gone, and not-installed providers are hidden.
+- 修正 AI 用量区块的语义：`session_usage.used/size` 是当前会话上下文水位 / 模型上下文窗口（自动压缩时暴跌、换会话归零），不是账户余额。区块标题改为「WorkBuddy 用量」（三行都读自 WorkBuddy；仅当确实装了 Codex 才退回泛指的「AI 用量」），内容为 上下文（已用/窗口）、已消耗（`credit_json` 累计，单调不减）与 本周活动；Claude Code/Codex 手写上限的假"额度"进度条移除，未安装的行不再显示。
+- `readStatus` fallback no longer mixes another session's usage with the newest session's model (size is model-specific); the fallback prefers the same cwd and carries the owning session's model/title. Stale usage (default `quotaStaleMs` = 6h) is now flagged.
+- `readStatus` 回退不再把别的会话的用量配到最新会话的 model 上（size 由 model 决定）；回退优先同 cwd，并携带 usage 所属会话的 model/title。用量超过 `quotaStaleMs`（默认 6 小时）未更新时标记 stale。
 - Quota reporter now falls back to a plain `git push` (Windows Credential Manager) when the API token is missing or rejected, so cloud data keeps flowing without a PAT.
 - 上报器在 API 令牌缺失/失效时自动回退为普通 `git push`（走 Windows 凭据管理器），云端数据不再依赖 PAT 存活。
 

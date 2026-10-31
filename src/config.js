@@ -55,6 +55,9 @@ function buildConfig() {
     codexCap: Number(fileConfig.codexCap ?? 500),
 
     staleMs: Number(fileConfig.staleMs ?? 10 * 60 * 1000),
+    // 用量数据（session_usage.updated_at）超过这个时长没更新，就标记为陈旧。
+    // 默认 6 小时：会话进行中每次请求都会刷新，久于这个时间说明真的停了。
+    quotaStaleMs: Number(fileConfig.quotaStaleMs ?? 6 * 60 * 60 * 1000),
 
     // 运行模式：local = 直接读本机 DB；cloud = 无 DB，用本机上报上来的 data/quotas.json
     mode: fileConfig.mode ?? 'local',
@@ -85,6 +88,7 @@ function buildConfig() {
   if (env.SHAWN_MODE) cfg.mode = env.SHAWN_MODE;
   if (env.SHAWN_QUOTAS_FILE) cfg.quotasFile = env.SHAWN_QUOTAS_FILE;
   if (env.SHAWN_REPORT_STALE_MS) cfg.reportStaleMs = Number(env.SHAWN_REPORT_STALE_MS);
+  if (env.SHAWN_QUOTA_STALE_MS) cfg.quotaStaleMs = Number(env.SHAWN_QUOTA_STALE_MS);
 
   return cfg;
 }

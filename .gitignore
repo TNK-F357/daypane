@@ -23,6 +23,7 @@ export/*.zip
 
 # preview artifacts
 tools/*.png
+/preview*.png
 
 # runtime logs / cache
 tools/*.log

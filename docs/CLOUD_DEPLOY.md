@@ -26,7 +26,7 @@ Use a fine-grained GitHub token restricted to `daypane`, with Actions write perm
 
 An accepted dispatch is not proof of a successful image deployment. The scheduler returns quickly; inspect Actions for generation and deployment results.
 
-GitHub's :17 and :47 schedule is a backup. `cancel-in-progress: false` prevents new triggers from interrupting an active generation. External scheduling cannot guarantee immediate runner availability.
+GitHub's :17 and :47 schedule is a backup. `cancel-in-progress: true` is **required**, not a style choice: a run stuck in the Pages deploy queue (observed 2026-10-05, five days of dead renders) is cancelled by the next trigger instead of blocking every later render. With `false`, one stuck run holds the queue head and every later run only goes pending-then-cancelled — the pipeline stalls with no reported failure. External scheduling cannot guarantee immediate runner availability.
 
 ## Pages
 
@@ -46,13 +46,15 @@ Each run collects data once and renders both languages. `screen.png` and the roo
 
 The repository's default documentation is English. Runtime language is selected separately in the plugin's **Language / 语言** menu. English news comes from HN, while Chinese news sources remain unchanged. Custom display labels may need English values; they are not automatically translated.
 
-## Local reporter migration
+## Local reporter
 
-Update the reporter and change `GITHUB_BRANCH=main` to `GITHUB_BRANCH=runtime-data` in your private configuration. The default remote path is now `quotas.json`.
+The reporter is part of the dashboard service, not a second background process: whenever the service renders a screen it uploads a throttled snapshot, so uploads happen only while the board (and WorkBuddy) is actually in use. If you previously registered `DayPaneQuotaReporter.vbs` in your startup folder, delete it — the service's own startup entry is enough. The manual `report_quota.bat` remains for one-off pushes.
 
-Local files live under `SHAWN_DATA_DIR`, defaulting to `~/.local/share/shawn-kanban/`. Successful-upload state is separate from collection state; a failed upload remains eligible for retry. A five-minute heartbeat prevents unchanged usage from appearing offline.
+Update the reporter and change `GITHUB_BRANCH=main` to `GITHUB_BRANCH=runtime-data` in your private configuration. The default remote path is now `quotas.json`. Secrets are re-read from `tools/report_secrets.bat` on every attempt, so editing it does not require restarting the service.
 
-Metric meanings are unchanged: the cloud reporter's Claude Code field counts WorkBuddy messages, and its Codex field counts file activity. Neither represents authoritative account quota. Do not include sensitive task text in runtime input: `runtime-data` is public, like this repository.
+Local files live under `SHAWN_DATA_DIR`, defaulting to `~/.local/share/shawn-kanban/`. Successful-upload state is separate from collection state; a failed upload remains eligible for retry, backing off from 10 up to 30 minutes. Background runs never touch git credentials, so an expired token produces a log line instead of a prompt; only `report_quota.bat --force` is allowed to fall back to `git push`.
+
+The WorkBuddy block is fed by the last uploaded snapshot. Its three rows are Context (used/context window — it drops when WorkBuddy auto-compacts and resets on a new session, so it is a watermark, not a balance), Spent (cumulative `credit_json`, monotonic) and 7d activity. None of them is an authoritative account quota. Do not include sensitive task text in runtime input: `runtime-data` is public, like this repository.
 
 ## 48-hour validation
 

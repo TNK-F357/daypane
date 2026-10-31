@@ -70,10 +70,12 @@ function renderScreenPng(language = 'zh', port = 8787) {
 }
 
 function sendJson(res, obj) {
+  // 故意不加 Access-Control-Allow-Origin：看板页面是同源请求、Kindle 走 LuaSocket、
+  // 云端渲染是服务端请求，三条链路都不需要 CORS。而 ACAO:* 会让用户浏览器里打开的
+  // 任意网页都能 fetch 走 /api/dashboard —— 那份数据含会话标题、持仓与城市。
   res.writeHead(200, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*'
+    'Cache-Control': 'no-store'
   });
   res.end(JSON.stringify(obj, null, 2));
 }
@@ -101,7 +103,8 @@ header .meta{font-size:12px;color:#8b949e;}
 .badge.ok{background:#122;color:#3fb950;border:1px solid #238636;}
 .badge.err{background:#221;color:#f85149;border:1px solid #da3633;}
 .grid{display:grid;gap:12px;margin-bottom:12px;}
-.grid.quotas{grid-template-columns:repeat(3,1fr);}
+.grid.quotas{grid-template-columns:1fr;}
+.usage-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 .grid.main{grid-template-columns:1.1fr .9fr;}
 .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px 16px;}
 .card h2{font-size:12px;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
@@ -142,6 +145,7 @@ header .meta{font-size:12px;color:#8b949e;}
 .loading{color:#8b949e;text-align:center;padding:40px;font-size:15px;}
 @media(max-width:900px){
   .grid.quotas{grid-template-columns:1fr;}
+  .usage-grid{grid-template-columns:1fr;}
   .grid.main{grid-template-columns:1fr;}
   .stocks-grid{grid-template-columns:repeat(2,1fr);}
 }
@@ -157,7 +161,10 @@ header .meta{font-size:12px;color:#8b949e;}
 <div id="app"><div class="loading">加载中…</div></div>
 </div>
 <script>
-const INIT = ${initJson};
+// 必须用 let：refresh() 会用新数据覆盖 INIT。
+// 之前写成 const，浏览器里每次自动刷新都抛 "Assignment to constant variable"，
+// 被 catch 吞掉 —— 页面首次打开正常，之后每 30 分钟静默失败，数字永远停在打开那一刻。
+let INIT = ${initJson};
 const W_ICONS = {晴:'☀️',晴转多云:'🌤️',多云:'⛅',阴:'☁️',小雨:'🌦️',中雨:'🌧️',大雨:'⛈️',雷阵雨:'⛈️',雪:'🌨️',雾:'🌫️',霾:'🌫️'};
 function esc(s){return String(s ?? '').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function wIco(text){for(const k in W_ICONS){if((text||'').includes(k))return W_ICONS[k];}return '🌡️';}
@@ -181,19 +188,26 @@ function render(d){
   const cl=(d.clocks&&d.clocks.items)||[];
   const qbar=(used,total,color)=>{const p=total?Math.min(100,(used/total)*100):0;
     return '<div class="qbar"><i style="width:'+p+'%;background:'+color+'"></i></div>';};
-  let wbHtml='<div class="qsub">不可用 ('+esc(wbError(q.workbuddy))+')</div>';
-  function wbError(v){return v&&v.error?v.error:'未知';}
-  if(q.workbuddy&&q.workbuddy.ok){
-    const t=q.workbuddy.token||{};
-    const used=t.size-t.remaining;const p=Math.round(t.percent||0);
-    wbHtml='<div class="qval" style="font-size:14px">'+esc(q.workbuddy.model||'?')+'</div>'
-      +'<div class="qval">'+fmtNum(t.remaining)+' <small style="font-size:11px;color:#8b949e">/ '+fmtNum(t.size)+'</small></div>'
-      +qbar(used,t.size,p>80?'#f6465d':'#3fb950')
-      +'<div class="qsub">已用 '+p+'%</div>';
-  }
   function fmtNum(v){if(v==null)return 'n/a';return v.toLocaleString('zh');}
-  const cc=q.claudecode||{};
-  const cx=q.codex||{};
+  // WorkBuddy 用量三行：上下文（水位，压缩后会回落）/ 已消耗（单调不减）/ 本周活动。
+  // 与 PNG 版 tools/render_screen.py 的 draw_ai 同构 —— 两边必须一起改，
+  // 之前这里还是旧的"限额 + Claude/Codex 手写 cap"，语义是错的。
+  function usageHtml(){
+    const wbv=q.workbuddy||{};
+    if(!wbv.ok) return '<div class="qsub">不可用 ('+esc(wbv.error||'未知')+')</div>';
+    const c=wbv.context||{}, cr=wbv.credit||{}, act=q.claudecode||{};
+    const ctxCol=(c.used!=null&&c.size)
+      ? '<div><div class="qsub">上下文</div>'
+        +'<div class="qval">'+fmtNum(c.used)+' <small style="font-size:11px;color:#8b949e">/ '+fmtNum(c.size)+'</small></div>'
+        +qbar(c.used,c.size,(c.percent||0)>80?'#f6465d':'#3fb950')
+        +'<div class="qsub">已占用 '+(c.percent||0)+'% · 压缩后会回落</div></div>'
+      : '<div><div class="qsub">上下文</div><div class="qval">n/a</div><div class="qsub">无用量数据</div></div>';
+    return '<div class="usage-grid">'+ctxCol
+      +'<div><div class="qsub">已消耗</div><div class="qval">'+fmtNum(cr.used)+'</div>'
+      +'<div class="qsub">credits · '+fmtNum(cr.count)+' 次请求</div></div>'
+      +'<div><div class="qsub">本周活动</div><div class="qval">'+fmtNum(act.used7d)+'</div>'
+      +'<div class="qsub">条消息 · '+fmtNum(act.sessions7d)+' 个会话</div></div></div>';
+  }
   const wd=w.ok
     ?'<div class="weather-main"><div class="weather-ico">'+wIco(w.text)+'</div>'
       +'<div><div class="weather-temp">'+esc(w.temp)+'<small>°C</small></div>'
@@ -216,15 +230,7 @@ function render(d){
     :'<div class="qsub">不可用 ('+esc(fx.error||'')+')</div>';
   const clocks=cl.map(c=>'<div class="clock"><span class="cc">'+esc(c.city)+'</span><span class="ct">'+esc(c.time)+'</span><span class="cd">'+esc(c.date)+'</span></div>').join('');
   return '<div class="grid quotas">'
-    +'<div class="card"><h2><span class="ico">🤖</span>WorkBuddy 限额</h2>'+wbHtml+'</div>'
-    +'<div class="card"><h2><span class="ico">💻</span>Claude Code 本周</h2>'
-      +'<div class="qval">'+esc(cc.used7d)+' <small style="font-size:11px;color:#8b949e">/ '+esc(cc.cap)+'</small></div>'
-      +qbar(Number(cc.used7d)||0,Number(cc.cap)||0,'#58a6ff')
-      +'<div class="qsub">'+ (cc.ok?'':'本地估算')+'</div></div>'
-    +'<div class="card"><h2><span class="ico">⚡</span>Codex 本周</h2>'
-      +'<div class="qval">'+esc(cx.used7d)+' <small style="font-size:11px;color:#8b949e">/ '+esc(cx.cap)+'</small></div>'
-      +qbar(Number(cx.used7d)||0,Number(cx.cap)||0,'#d29922')
-      +'<div class="qsub">'+ (cx.ok?'':'本地估算')+'</div></div>'
+    +'<div class="card"><h2><span class="ico">🤖</span>WorkBuddy 用量</h2>'+usageHtml()+'</div>'
     +'</div>'
     +'<div class="stocks-grid">'+stocks+'</div>'
     +'<div class="grid main">'
@@ -261,7 +267,9 @@ scheduleRefresh();
 </body></html>`;
 }
 
-export function createServer({ db = null, cfg = config, renderImage = renderScreenPng } = {}) {
+export function createServer({ db = null, cfg = config, renderImage = renderScreenPng, reporter = null } = {}) {
+  // reporter 默认 null = 不上报：由 index.js 显式创建并传入。
+  // 这样单测里的 server 不会做任何网络推送（也避免污染测试输出）。
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const remote = req.socket.remoteAddress || '?';
@@ -279,8 +287,16 @@ export function createServer({ db = null, cfg = config, renderImage = renderScre
     }
 
     if (url.pathname === '/api/status') {
-      const status = db ? readStatus(db, { cwdFilter: cfg.cwdFilter }) : null;
-      sendJson(res, { ok: true, data: status, serverTime: Date.now() });
+      // 这里必须自己兜住异常：它是唯一一个没有 try/catch 的数据源。
+      // 异常会变成 unhandledRejection 直接终止进程 → 守护脚本 3 秒后重启 →
+      // Kindle 再打一次又崩 → 崩溃循环，屏幕直接黑掉。
+      try {
+        const status = db ? readStatus(db, { cwdFilter: cfg.cwdFilter }) : null;
+        sendJson(res, { ok: true, data: status, serverTime: Date.now() });
+      } catch (e) {
+        process.stderr.write('[dash] status read failed: ' + e.message + '\n');
+        sendJson(res, { ok: false, error: e.message, serverTime: Date.now() });
+      }
       return;
     }
 
@@ -301,6 +317,9 @@ export function createServer({ db = null, cfg = config, renderImage = renderScre
         sendJson(res, { schemaVersion: 1, image_url: '/api/image/' + sha256 + '.png', sha256,
           generatedAt: Date.now(), width: png.readUInt32BE(16), height: png.readUInt32BE(20),
           state: 'ready', language, staleAfterSeconds: 2700, refreshAfterSeconds: 1800 });
+        // 出图 = 看板真的在被使用，顺手把本机用量推一份到云端兜底。
+        // fire-and-forget：内部自带节流/退避，失败静默，绝不拖慢这次响应。
+        if (reporter) reporter.maybeReport();
       } catch { res.writeHead(503); res.end('Image generation failed'); }
       return;
     }

@@ -78,6 +78,7 @@ function build(path, rows) {
 // Deterministic fixture:
 //  - s1 / s2 live in the same workspace; s2 is newest and has usage (used 100 / size 1000)
 //  - s3 is in another cwd and has NO usage row (exercises the fallback path)
+//  - credit_json 形如 { requestId: credit }，供 creditUsed/creditCount 断言
 const fixtureRows = [
   {
     id: 's1',
@@ -86,7 +87,7 @@ const fixtureRows = [
     status: 'planning',
     model: 'hy3',
     last_activity_at: 1000,
-    usage: { used: 50, size: 1000, updated_at: 1000 }
+    usage: { used: 50, size: 1000, updated_at: 1000, credit_json: '{"a":1.5,"b":2.5}' }
   },
   {
     id: 's2',
@@ -95,7 +96,7 @@ const fixtureRows = [
     status: 'completed',
     model: 'hy3',
     last_activity_at: 2000,
-    usage: { used: 100, size: 1000, updated_at: 2000 }
+    usage: { used: 100, size: 1000, updated_at: 2000, credit_json: '{"c":10,"d":0.5}' }
   },
   {
     id: 's3',

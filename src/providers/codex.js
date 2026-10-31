@@ -59,11 +59,14 @@ export function getCodexUsage() {
   }
   return {
     ok: true,
+    metric: 'activity',
     used7d: used,
     cap,
     remaining: Math.max(0, cap - used),
     percent: cap ? Math.min(100, Math.round((used / cap) * 100)) : 0,
     unit: 'files',
-    source: `local ${dir} (approx)`
+    // 不带绝对路径：这个字段会进公开的 runtime-data/quotas.json，
+    // 而路径里含本机用户名。
+    source: 'local codex dir (approx)'
   };
 }

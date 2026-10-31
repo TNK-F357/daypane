@@ -28,7 +28,7 @@
 
 API 成功接受触发与图片发布成功是两件事。定时器请求很快返回，不等待生成；生成和部署结果在 GitHub Actions 检查。
 
-GitHub 自带第 17、47 分钟定时仅为备份；`cancel-in-progress: false` 避免新触发中断正在生成的任务。外部定时也不能保证 GitHub 运行器绝对准点。
+GitHub 自带第 17、47 分钟定时仅为备份；`cancel-in-progress: true` 是**必须**，不是风格选择：卡在 Pages 部署队列的运行（2026-10-05 实测停摆 5 天）会被下一次触发取消，从而不阻塞后续所有渲染。若为 false，卡住的运行会占住队头，之后每 30 分钟的新 run 只能 pending 再被逐个 cancel —— 表现为"全线 cancelled 但没有任何失败"，流水线静默停摆。外部定时也不能保证 GitHub 运行器绝对准点。
 
 ## Pages
 
@@ -50,13 +50,15 @@ Settings → Pages → Source 设为 GitHub Actions。工作流使用 upload-pag
 
 仓库默认展示英文，设备语言通过插件 **Language / 语言** 单独选择。英文新闻使用 HN，中文新闻源保持原样；自定义名称不会自动翻译。
 
-## 本机额度上报迁移
+## 本机额度上报
 
-更新上报器，并将现有私有配置中的 `GITHUB_BRANCH=main` 改为 `GITHUB_BRANCH=runtime-data`。默认远端路径改为 `quotas.json`。
+上报已并入看板服务，不再是第二个后台进程：服务每次出图会顺带推一次带节流的快照，所以上报只发生在看板（也就是 WorkBuddy）真正被使用的时候。若之前在启动目录注册过 `DayPaneQuotaReporter.vbs`，删掉即可——服务自己的开机自启项已经够了。手动补推仍可用 `report_quota.bat`。
 
-本地文件放在 `SHAWN_DATA_DIR`，默认 `~/.local/share/shawn-kanban/`。成功上传记录与本地采集分开，失败下轮重试；默认五分钟心跳避免用量不变时误判离线。
+更新上报器，并将现有私有配置中的 `GITHUB_BRANCH=main` 改为 `GITHUB_BRANCH=runtime-data`。默认远端路径改为 `quotas.json`。敏感配置每次上报时重新读取 `tools/report_secrets.bat`，改完不需要重启服务。
 
-AI 指标含义保持原样：Claude Code 栏实际统计 WorkBuddy 消息，Codex 栏统计文件活动，不能视为账户真实额度。不要把敏感任务文本加入运行输入；runtime-data 与现有仓库同样公开。
+本地文件放在 `SHAWN_DATA_DIR`，默认 `~/.local/share/shawn-kanban/`。成功上传记录与本地采集分开，失败下轮重试并按 10→20→30 分钟退避。后台运行绝不触碰 git 凭据，令牌失效只会写一条日志而不会弹窗；只有手动 `report_quota.bat --force` 才允许回退到 `git push`。
+
+WorkBuddy 区块的数据来自最后一次上传的快照。三行分别是 上下文（已用/上下文窗口——WorkBuddy 自动压缩时会回落、换会话会归零，是水位不是余额）、已消耗（`credit_json` 累计，单调不减）与 本周活动，都不是账户真实额度。不要把敏感任务文本加入运行输入；runtime-data 与现有仓库同样公开。
 
 ## 48 小时验收
 

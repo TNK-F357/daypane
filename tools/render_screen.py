@@ -22,7 +22,13 @@ from PIL import Image, ImageDraw, ImageFont
 LANG = 'zh'
 LABELS = {
     '今日新闻 · AI': 'AI News', '新闻源暂不可用': 'News unavailable',
-    'AI 额度': 'AI Activity', 'AI 额度 · 电脑离线': 'AI Activity · PC offline',
+    'AI 用量': 'AI Usage', 'AI 用量 · 电脑离线': 'AI Usage · PC offline',
+    'WorkBuddy 用量': 'WorkBuddy usage', 'WorkBuddy 用量 · 电脑离线': 'WorkBuddy usage · PC offline',
+    '上下文': 'Context', '已消耗': 'Spent', '本周活动': '7d activity', '·旧': '·stale',
+    'Codex 文件': 'Codex files',
+    # 单位也要翻译：以前 '2 次' / '42 条 · 4 会话' 是硬编码在格式串里的，
+    # 标签翻成英文、单位还留着中文。
+    '次': 'times', '条': 'msgs', '会话': 'sessions',
     '未安装': 'Not installed', '不可用': 'Unavailable', '天气': 'Weather',
     '天气不可用': 'Weather unavailable', '市场': 'Markets', '世界时钟': 'World Clocks',
     '时钟不可用': 'Clocks unavailable', 'MLB · 道奇 / 教士': 'MLB · LAD / SD (UTC+8)',
@@ -30,6 +36,27 @@ LABELS = {
     '无近期战报': 'No recent game', '今日一句': 'Daily Thought',
     '（编辑 data/quotes.txt）': '(Edit data/quotes.en.txt)',
 }
+
+# 记录画上去的文本：英文版里混进中文就说明漏翻译，在渲染时直接拦住。
+# （以前只靠人眼看图，于是 '2 次' / '42 条' 这种硬编码在格式串里的单位一直没被发现。）
+_DRAWN = []
+
+
+def _record_texts(draw):
+    """包装 draw.text，把画上去的文本记下来，供英文版的 CJK 自检使用。"""
+    original = draw.text
+
+    def text(xy, content, *args, **kwargs):
+        _DRAWN.append(str(content))
+        return original(xy, content, *args, **kwargs)
+
+    draw.text = text
+    return draw
+
+
+def _cjk_leak():
+    """返回本次渲染画上去的、含中日韩统一表意文字的文本片段。"""
+    return sorted({t for t in _DRAWN if any('\u4e00' <= ch <= '\u9fff' for ch in t)})
 CITY_EN = {'深圳':'Shenzhen', '伦敦':'London', '洛杉矶':'Los Angeles', '纽约':'New York', '德里':'Delhi'}
 TEAM_EN = dict(zip(
     '响尾蛇 勇士 金莺 红袜 小熊 白袜 红人 守护者 洛基 老虎 太空人 皇家 天使 道奇 马林鱼 酿酒人 双城 大都会 洋基 运动家 费城人 海盗 教士 巨人 水手 红雀 光芒 游骑兵 蓝鸟 国民'.split(),
@@ -332,47 +359,71 @@ def draw_news(draw, d, y):
     return y + n * (F_BODY + 8)
 
 def draw_ai(draw, d, y):
-    """AI 额度：WorkBuddy / Claude Code / Codex 三行统一度量衡"""
-    # cloud 模式下若本机久未上报，标题直接点明"电脑离线"，不拿旧值假装新鲜
-    title = ('AI Activity' if LANG == 'en' else 'AI 活动估算') if d.get('pcOnline', True) else ('AI Activity · PC offline' if LANG == 'en' else 'AI 活动 · 电脑离线')
-    y = draw_title(draw, y, title, d.get('quotas'))
+    """AI 用量：上下文水位 / 真实消耗 / 活动量。
+
+    注意：WorkBuddy 的 used/size 是「当前会话上下文水位 / 模型窗口」，
+    会在自动压缩时暴跌，绝不是账户余额 —— 所以这里只叫"上下文"，
+    真正的"花掉多少"另起一行用 credit（单调累加，不受压缩影响）。
+    Claude/Codex 只有活动量（cap 是 config 里的手写参考值），不画成剩余额度。
+    """
     q = d.get('quotas', {})
-    rows = [
-        ('WorkBuddy', q.get('workbuddy', {})),
-        ('Claude Code', q.get('claudecode', {})),
-        ('Codex', q.get('codex', {}))
-    ]
     ff = f(F_BODY)
     fs = f(F_SMALL)
     bar_h, bar_w, gap = 10, 300, 6
-    for i, (name, v) in enumerate(rows):
+
+    rows = []  # (行名, 右侧数值, 进度条百分比 or None)
+    wb = q.get('workbuddy') or {}
+    if wb.get('ok'):
+        ctx = wb.get('context') or {}
+        c_used = ctx.get('used') if ctx.get('used') is not None else wb.get('used')
+        c_size = ctx.get('size') if ctx.get('size') is not None else wb.get('cap')
+        c_pct = ctx.get('percent') if ctx.get('percent') is not None else wb.get('percent')
+        if c_used is not None and c_size is not None:
+            if ctx:
+                val = '%s / %s' % (fnum(c_used), fnum(c_size))       # 已用上下文 / 窗口
+            else:
+                # 云端拿到的旧 quotas.json 没有 context 字段，退回老口径
+                rem = wb.get('remaining')
+                val = '%s / %s' % (fnum(rem), fnum(c_size)) if rem is not None else '%s / %s' % (fnum(c_used), fnum(c_size))
+            if wb.get('stale'):
+                val += ' ' + tr('·旧')
+            rows.append((tr('上下文'), val, c_pct))
+        cr = wb.get('credit') or {}
+        if cr.get('used') is not None:
+            rows.append((tr('已消耗'), '%s credits · %s %s' % (fnum(cr.get('used')), fnum(cr.get('count')), tr('次')), None))
+    cc = q.get('claudecode') or {}
+    if cc.get('ok'):
+        rows.append((tr('本周活动'), '%s %s · %s %s' % (fnum(cc.get('used7d')), tr('条'), fnum(cc.get('sessions7d')), tr('会话')), None))
+    cx = q.get('codex') or {}
+    if cx.get('ok'):
+        rows.append((tr('Codex 文件'), '%s / %s' % (fnum(cx.get('used7d')), fnum(cx.get('cap'))), None))
+    if not rows:
+        rows.append((tr('AI'), tr('不可用'), None))
+
+    # 标题点名 WorkBuddy：这三行都是它的数据（活动量也读自 WorkBuddy 的 transcript）。
+    # 只有确实装了别的工具（Codex）时才退回泛指的"AI 用量"。
+    # cloud 模式下若本机久未上报，标题直接点明"电脑离线"，不拿旧值假装新鲜
+    offline = not d.get('pcOnline', True)
+    if cx.get('ok'):
+        title = tr('AI 用量 · 电脑离线') if offline else tr('AI 用量')
+    else:
+        title = tr('WorkBuddy 用量 · 电脑离线') if offline else tr('WorkBuddy 用量')
+    y = draw_title(draw, y, title, d.get('quotas'))
+
+    for i, (name, val, pct) in enumerate(rows):
         ry = y + i * (F_BODY + bar_h + gap)
         draw.text((PAD, ry), name, fill=BLACK, font=ff)
-        used = v.get('used') if v.get('used') is not None else v.get('used7d')
-        cap = v.get('cap')
-        rem = v.get('remaining')
-        pct = v.get('percent')
-        unit = v.get('unit') or ''
-        if v.get('ok') and rem is not None and cap is not None:
-            val = '%s / %s' % (fnum(rem), fnum(cap))
-        elif v.get('ok'):
-            val = '%s / %s' % (fnum(used), fnum(cap))
-        else:
-            val = tr('未安装') if v.get('error') == 'not-installed' else tr('不可用')
-        # 右侧数值（剩余/总额）
-        vx = SCREEN_W - PAD - bar_w - 20 - tw(draw, val, fs)
-        draw.text((vx, ry + 4), val, fill=GRAY, font=fs)
-        # 进度条（右侧固定宽度，不内嵌文字，e-ink 可读性更好）
+        right = SCREEN_W - PAD if pct is None else SCREEN_W - PAD - bar_w - 20
+        draw.text((right - tw(draw, val, fs), ry + 4), val, fill=GRAY, font=fs)
+        if pct is None:
+            continue
         bx = SCREEN_W - PAD - bar_w
         by = ry + 6
         r = bar_h // 2
         draw.rounded_rectangle([bx, by, bx + bar_w, by + bar_h], radius=r, fill=LIGHT_GRAY, outline=BLACK, width=1)
-        if v.get('ok') and pct is not None:
-            fw = max(bar_h, int(bar_w * (pct or 0) / 100))
-            if fw > 2:
-                draw.rounded_rectangle([bx, by, bx + fw, by + bar_h], radius=r, fill=BLACK)
-        elif not v.get('ok'):
-            draw.text((bx + 8, by - 2), '—', fill=GRAY, font=fs)
+        fw = max(bar_h, int(bar_w * (pct or 0) / 100))
+        if fw > 2:
+            draw.rounded_rectangle([bx, by, bx + fw, by + bar_h], radius=r, fill=BLACK)
     return y + len(rows) * (F_BODY + bar_h + gap)
 
 def draw_weather(draw, d, y):
@@ -522,6 +573,8 @@ def render(d, out_path=None, language="zh"):
             if isinstance(value, (int,float)): d['weather'][key] = value*9/5+32
     img = Image.new('L', (SCREEN_W, SCREEN_H), WHITE)
     draw = ImageDraw.Draw(img)
+    _DRAWN.clear()
+    _record_texts(draw)
     quotes = load_quotes()
 
     y = PAD
@@ -551,6 +604,11 @@ def render(d, out_path=None, language="zh"):
         raise ValueError('Layout exceeds screen height; reduce modules or font scale')
     img = img.resize((LAYOUT['width'], LAYOUT['height']), Image.Resampling.LANCZOS)
     out = img.convert('1', dither=Image.Dither.FLOYDSTEINBERG)
+    # 英文版绝不能出现中文：漏翻译在这里直接失败，而不是等哪天有人翻图才发现。
+    if language == 'en':
+        leaked = _cjk_leak()
+        if leaked:
+            raise ValueError('English render contains Chinese text: %r' % (leaked[:5],))
     if out_path:
         out.save(out_path)
         print('saved', out_path, file=sys.stderr, flush=True)

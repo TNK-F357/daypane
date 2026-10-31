@@ -69,8 +69,11 @@ export function getClaudeCodeUsage() {
   const used7d = messages;
   const remaining = Math.max(0, cap - used7d);
   const percent = cap ? Math.min(100, Math.round((used7d / cap) * 100)) : 0;
+  // metric='activity'：这是活动量统计，不是配额。cap 来自 config.json 的
+  // claudeCap（手写参考值），没有真实上限语义 —— UI 不该把它画成"剩余额度"。
   const value = {
     ok: true,
+    metric: 'activity',
     used7d,
     cap,
     remaining,

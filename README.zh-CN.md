@@ -57,12 +57,19 @@ npm start
 | 城市与坐标 | `weather.city/lat/lon` | `DASH_CITY` / `DASH_LAT` / `DASH_LON` |
 | 股票列表 | `stocks` | `DASH_STOCKS`(JSON) |
 | 世界时钟 | `clocks` | `DASH_CLOCKS`(JSON) |
-| 限额上限 | `claudeCap` / `codexCap` | `DASH_CLAUDE_CAP` / `DASH_CODEX_CAP` |
+| 活动量参考上限 | `claudeCap` / `codexCap` | `DASH_CLAUDE_CAP` / `DASH_CODEX_CAP` |
+| 用量陈旧阈值 | `quotaStaleMs`（默认 6 小时） | `SHAWN_QUOTA_STALE_MS` |
 | WorkBuddy 库路径 | — | `WORKBUDDY_DB_PATH` |
 
 股票默认：苹果(AAPL)、美光(MU)、贵州茅台、长鑫科技(688825)，每只带 30 日收盘走势。
 数据源：天气=Open-Meteo、汇率=open.er-api.com、股票=腾讯财经（gtimg），**均免 API key**。
-限额中的 Claude Code / Codex 取自本机历史目录近 7 天的统计，为近似值（标注 `本地`）。
+活动量中的 Claude Code / Codex 取自本机历史目录近 7 天的统计，为近似值（标注 `本地`）。
+
+AI 用量区块的三个数字含义不同，勿混为一谈：
+
+- **上下文**：当前会话的上下文水位 / 模型上下文窗口。会在自动压缩时暴跌、换会话时归零，**不是账户余额**。
+- **已消耗**：`credit_json` 累计（credits · 请求次数），单调不减，才是真正"花掉多少"。
+- **本周活动**：近 7 天消息/文件计数，`claudeCap` / `codexCap` 只是手写参考值，没有真实上限语义。
 
 ## Kindle 安装与升级
 
