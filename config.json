@@ -2,9 +2,9 @@
   "host": "0.0.0.0",
   "port": 8787,
   "weather": {
-    "city": "深圳",
-    "lat": 22.54,
-    "lon": 114.06
+    "city": "Nagano",
+    "lat": 36.6485,
+    "lon": 138.1942
   },
   "fxBase": "USD",
   "stocks": [
@@ -70,6 +70,15 @@
   "claudeCap": 1000,
   "codexCap": 500,
   "display": {
-    "timezone": "Asia/Shanghai"
+    "timezone": "Asia/Tokyo",
+    "preset": "minimal",
+    "modules": [
+      "weather",
+      "clocks"
+    ],
+    "width": 1072,
+    "height": 1448,
+    "fontScale": 1,
+    "temperatureUnit": "C"
   }
 }
