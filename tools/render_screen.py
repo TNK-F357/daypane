@@ -148,7 +148,7 @@ _REG_CANDS, _BOLD_CANDS = _font_candidates()
 FONT_REG = _pick_font('SHAWN_FONT_REG', _REG_CANDS, WIN_REG)
 FONT_BOLD = _pick_font('SHAWN_FONT_BOLD', _BOLD_CANDS, WIN_BOLD)
 
-F_DATE = 96
+F_DATE = 64
 F_MONTH = 46
 F_TIME = 72
 F_TITLE = 40
@@ -296,15 +296,11 @@ def load_quotes():
 # ---------- 模块 ----------
 def draw_header(draw, d, y):
     now = display_now()
-    day = now.strftime('%d')
-    wd = '一二三四五六日'[now.weekday()]
-    mw = (['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.month-1] + ' ' + ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][now.weekday()]) if LANG == 'en' else '%d月 周%s' % (now.month, wd)
+    day = '%d年%d月%d日（%s）' % (now.year, now.month, now.day, '月火水木金土日'[now.weekday()])
     ts = now.strftime('%H:%M')
     city = (d.get('weather') or {}).get('city') or ''
     fd = f(F_DATE, bold=True)
     draw.text((PAD, y), day, fill=BLACK, font=fd)
-    dw = tw(draw, day, fd)
-    draw.text((PAD + dw + 24, y + 16), mw, fill=BLACK, font=f(F_MONTH, bold=True))
     ft = f(F_TIME, bold=True)
     tw_s = tw(draw, ts, ft)
     draw.text((SCREEN_W - PAD - tw_s, y - 6), ts, fill=BLACK, font=ft)
