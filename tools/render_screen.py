@@ -572,7 +572,7 @@ def render(d, out_path=None, language="zh"):
     SCREEN_W = 1072
     SCREEN_H = round(1072 * LAYOUT['height'] / LAYOUT['width'])
     CONTENT_W = SCREEN_W - 2 * PAD
-for key, base in {'F_DATE':24,'F_MONTH':46,'F_TIME':72,'F_TITLE':40,'F_BIG':56,'F_BODY':34,'F_SMALL':27,'F_FOOT':24}.items():
+    for key, base in {'F_DATE':24,'F_MONTH':46,'F_TIME':72,'F_TITLE':40,'F_BIG':56,'F_BODY':34,'F_SMALL':27,'F_FOOT':24}.items():
         globals()[key] = round(base * LAYOUT['fontScale'])
     d = localized_data(d)
     if LAYOUT['temperatureUnit'] == 'F':
