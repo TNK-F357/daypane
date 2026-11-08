@@ -297,12 +297,12 @@ def load_quotes():
 def draw_header(draw, d, y):
     now = display_now()
     if LANG == 'en':
-    day = now.strftime('%b %d, %Y')
-else:
-    day = '%d年%d月%d日（%s）' % (
-        now.year, now.month, now.day,
-        '月火水木金土日'[now.weekday()]
-    )
+        day = now.strftime('%b %d, %Y')
+    else:
+        day = '%d年%d月%d日（%s）' % (
+            now.year, now.month, now.day,
+            '月火水木金土日'[now.weekday()]
+        )
     ts = now.strftime('%H:%M')
     city = (d.get('weather') or {}).get('city') or ''
     fd = f(F_DATE, bold=True)
