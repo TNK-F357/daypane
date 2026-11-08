@@ -76,8 +76,8 @@
       "weather",
       "clocks"
     ],
-    "width": 1072,
-    "height": 1448,
+    "width": 1448,
+    "height": 1072,
     "fontScale": 1,
     "temperatureUnit": "C"
   }
