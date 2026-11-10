@@ -91,9 +91,9 @@ def main():
     work = output.parent / 'render-work'
     work.mkdir(exist_ok=True)
 
-    def generate(language="zh"):
+    def generate(language="ja"):
         subprocess.run([sys.executable, 'tools/render_screen.py', '--check-fonts'], check=True, timeout=20)
-        if language == 'zh':
+       if language in ('zh', 'ja'):
             with (work / 'dashboard.json').open('wb') as f:
                 subprocess.run(['node', 'tools/dump_dashboard.js'], stdout=f, check=True, timeout=120)
         data = json.loads((work / 'dashboard.json').read_text())
