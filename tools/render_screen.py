@@ -62,11 +62,36 @@ CITY_EN = {'深圳':'Shenzhen', '伦敦':'London', '洛杉矶':'Los Angeles', '�
 TEAM_EN = dict(zip(
     '响尾蛇 勇士 金莺 红袜 小熊 白袜 红人 守护者 洛基 老虎 太空人 皇家 天使 道奇 马林鱼 酿酒人 双城 大都会 洋基 运动家 费城人 海盗 教士 巨人 水手 红雀 光芒 游骑兵 蓝鸟 国民'.split(),
     'ARI ATL BAL BOS CHC CWS CIN CLE COL DET HOU KC LAA LAD MIA MIL MIN NYM NYY OAK PHI PIT SD SF SEA STL TB TEX TOR WSH'.split()))
-WEATHER_EN = {0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
-    51:'Drizzle',53:'Drizzle',55:'Drizzle',56:'Freezing drizzle',57:'Freezing drizzle',
-    61:'Rain',63:'Rain',65:'Heavy rain',66:'Freezing rain',67:'Freezing rain',
-    71:'Snow',73:'Snow',75:'Heavy snow',77:'Snow grains',80:'Showers',81:'Showers',82:'Heavy showers',
-    85:'Snow showers',86:'Snow showers',95:'Thunderstorm',96:'Hailstorm',99:'Hailstorm'}
+WEATHER_JA = {
+    0: '快晴',
+    1: '晴れ',
+    2: '晴れ時々くもり',
+    3: 'くもり',
+    45: '霧',
+    48: '着氷性の霧',
+    51: '霧雨',
+    53: '霧雨',
+    55: '強い霧雨',
+    56: '凍る霧雨',
+    57: '凍る霧雨',
+    61: '小雨',
+    63: '雨',
+    65: '大雨',
+    66: '凍る雨',
+    67: '凍る雨',
+    71: '小雪',
+    73: '雪',
+    75: '大雪',
+    77: '細氷',
+    80: 'にわか雨',
+    81: 'にわか雨',
+    82: '激しいにわか雨',
+    85: 'にわか雪',
+    86: '激しいにわか雪',
+    95: '雷雨',
+    96: 'ひょうを伴う雷雨',
+    99: '激しい雷雨'
+}
 
 def tr(text):
     return LABELS.get(text, text) if LANG == 'en' else text
@@ -75,6 +100,11 @@ def localized_data(data):
     """Translate built-in labels without mutating the Chinese payload."""
     import copy
     d = copy.deepcopy(data)
+    if LANG == 'zh':
+        w = d.get('weather') or {}
+        w['text'] = WEATHER_JA.get(w.get('code'), '不明')
+        return d
+
     if LANG != 'en':
         return d
     d['news'] = d.get('newsEn') or {'ok': False, 'items': []}
