@@ -112,7 +112,7 @@ def localized_data(data):
     """Translate built-in labels without mutating the Chinese payload."""
     import copy
     d = copy.deepcopy(data)
-    if LANG == 'zh':
+    if LANG == 'ja':
         w = d.get('weather') or {}
         w['text'] = WEATHER_JA.get(w.get('code'), '不明')
         return d
@@ -668,7 +668,7 @@ def render(d, out_path=None, language="zh"):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--lang', choices=['en', 'zh'], default='zh')
+    ap.add_argument('--lang', choices=['en', 'zh', 'ja'], default='ja')
     ap.add_argument('--out')
     ap.add_argument('--data')
     ap.add_argument('--url', default='http://127.0.0.1:8787/api/dashboard')
