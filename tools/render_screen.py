@@ -37,6 +37,36 @@ LABELS = {
     '无近期战报': 'No recent game', '今日一句': 'Daily Thought',
     '（编辑 data/quotes.txt）': '(Edit data/quotes.en.txt)',
 }
+LABELS_JA = {
+    '今日新闻 · AI': '今日のAIニュース',
+    '新闻源暂不可用': 'ニュースを取得できません',
+    'AI 用量': 'AI使用量',
+    'AI 用量 · 电脑离线': 'AI使用量 · PCオフライン',
+    'WorkBuddy 用量': 'WorkBuddy使用量',
+    'WorkBuddy 用量 · 电脑离线': 'WorkBuddy使用量 · PCオフライン',
+    '上下文': 'コンテキスト',
+    '已消耗': '使用済み',
+    '本周活动': '今週の活動',
+    '·旧': '·古いデータ',
+    'Codex 文件': 'Codexファイル',
+    '次': '回',
+    '条': '件',
+    '会话': 'セッション',
+    '剩余': '残り',
+    '未安装': '未インストール',
+    '不可用': '利用できません',
+    '天气': '天気',
+    '天气不可用': '天気情報を取得できません',
+    '市场': 'マーケット',
+    '世界时钟': '世界時計',
+    '时钟不可用': '時計を利用できません',
+    '赛程暂不可用': '試合日程を取得できません',
+    '胜': '勝',
+    '负': '敗',
+    '无近期战报': '最近の試合結果はありません',
+    '今日一句': '今日のひとこと',
+    '（编辑 data/quotes.txt）': '（data/quotes.txtを編集）',
+}
 
 # 记录画上去的文本：英文版里混进中文就说明漏翻译，在渲染时直接拦住。
 # （以前只靠人眼看图，于是 '2 次' / '42 条' 这种硬编码在格式串里的单位一直没被发现。）
@@ -106,7 +136,11 @@ WEATHER_JA = {
 }
 
 def tr(text):
-    return LABELS.get(text, text) if LANG == 'en' else text
+    if LANG == 'ja':
+        return LABELS_JA.get(text, text)
+    if LANG == 'en':
+        return LABELS.get(text, text)
+    return text
 
 def localized_data(data):
     """Translate built-in labels without mutating the Chinese payload."""
