@@ -518,7 +518,12 @@ def draw_weather(draw, d, y):
         ft = f(F_BIG, bold=True)
         draw.text((PAD, y), t1, fill=BLACK, font=ft)
         tw1 = tw(draw, t1, ft)
-        det = ('%s  H%s L%s  RH%s%%' if LANG == 'en' else '%s  高%s 低%s  湿%s%%') % (w.get('text', ''), fnum(w.get('high')), fnum(w.get('low')), w.get('humidity', '?'))
+        if LANG == 'en':
+            det = '%s  H%s L%s  RH%s%%' % (w.get('text', ''), fnum(w.get('high')), fnum(w.get('low')), w.get('humidity', '?'))
+        elif LANG == 'ja':
+            det = '%s  最高%s  最低%s  湿度%s%%' % (w.get('text', ''), fnum(w.get('high')), fnum(w.get('low')), w.get('humidity', '?'))
+        else:
+            det = '%s  高%s 低%s  湿%s%%' % (w.get('text', ''), fnum(w.get('high')), fnum(w.get('low')), w.get('humidity', '?'))
         draw.text((PAD + tw1 + 24, y + 14), det, fill=GRAY, font=f(F_SMALL))
         # 温度大字用 56px 字体，实际字形高度超过 F_BIG，固定 y+F_BIG 会让字形底部压过分隔线
         return draw.textbbox((PAD, y), t1, font=ft)[3] + 8
