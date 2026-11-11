@@ -608,6 +608,7 @@ def draw_footer(draw, d, y, offline=False, last_ok=None):
 def render(d, out_path=None, language="zh"):
     global LANG
     LANG = language
+    print('[render] language=%s LANG=%s' % (language, LANG), flush=True)    
     global LAYOUT, SCREEN_W, SCREEN_H, CONTENT_W
     LAYOUT = load_layout(os.environ.get('SHAWN_CONFIG', 'config.json'))
     # Compose at a readable portrait ratio, then scale to the selected screen.
