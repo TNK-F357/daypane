@@ -89,6 +89,13 @@ def _cjk_leak():
     """返回本次渲染画上去的、含中日韩统一表意文字的文本片段。"""
     return sorted({t for t in _DRAWN if any('\u4e00' <= ch <= '\u9fff' for ch in t)})
 CITY_EN = {'深圳':'Shenzhen', '伦敦':'London', '洛杉矶':'Los Angeles', '纽约':'New York', '德里':'Delhi'}
+CITY_JA = {
+    '深圳': '深圳',
+    '伦敦': 'ロンドン',
+    '洛杉矶': 'ロサンゼルス',
+    '纽约': 'ニューヨーク',
+    '德里': 'デリー'
+}
 TEAM_EN = dict(zip(
     '响尾蛇 勇士 金莺 红袜 小熊 白袜 红人 守护者 洛基 老虎 太空人 皇家 天使 道奇 马林鱼 酿酒人 双城 大都会 洋基 运动家 费城人 海盗 教士 巨人 水手 红雀 光芒 游骑兵 蓝鸟 国民'.split(),
     'ARI ATL BAL BOS CHC CWS CIN CLE COL DET HOU KC LAA LAD MIA MIL MIN NYM NYY OAK PHI PIT SD SF SEA STL TB TEX TOR WSH'.split()))
