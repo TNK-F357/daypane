@@ -571,14 +571,33 @@ def draw_clocks(draw, d, y):
         for j, c in enumerate(cl[i:i+2]):
             x = PAD + j * colw
             city = c.get('city', '')
-            if LANG == 'en':
+            if LANG == 'ja':
+                city = CITY_JA.get(city, city)
+            elif LANG == 'en':
                 city = clip(draw, city, ff, colw - 150)
+
             tme = c.get('time', '')[:5]
             draw.text((x, ry), city, fill=BLACK, font=ff)
             cw = tw(draw, city, ff)
             draw.text((x + cw + 12, ry + 2), tme, fill=BLACK, font=ff)
             dw2 = tw(draw, tme, ff)
-            date_s = '' if LANG == 'en' else (c.get('date') or '').replace('周', ' 周')
+
+            if LANG == 'ja':
+                date_s = (c.get('date') or '')
+                for old, new in [
+                    ('周一', '月曜日'),
+                    ('周二', '火曜日'),
+                    ('周三', '水曜日'),
+                    ('周四', '木曜日'),
+                    ('周五', '金曜日'),
+                    ('周六', '土曜日'),
+                    ('周日', '日曜日')
+                ]:
+                    date_s = date_s.replace(old, new)
+                date_s = date_s.replace('年', '年').replace('月', '月')
+            else:
+                date_s = '' if LANG == 'en' else (c.get('date') or '').replace('周', ' 周')
+
             draw.text((x + cw + dw2 + 24, ry + 6), date_s, fill=GRAY, font=fs)
     return y + math.ceil(len(cl) / 2) * (F_BODY + 8)
 
